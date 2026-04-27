@@ -51,7 +51,16 @@ _JS_LIBS  = {
 }
 
 def _get_js(name, log=None):
-    """Return JS library text, downloading and caching on first use."""
+    """Return JS library text, downloading and caching on first use.
+
+    On macOS the bundled Python sometimes can't verify SSL certificates.
+    We try three strategies in order:
+      1. Normal verified request (works on Windows + most Linux)
+      2. Verified request using certifi's CA bundle (fixes macOS bundled app)
+      3. Unverified request (last resort — still encrypted, just not verified)
+    """
+    import ssl
+
     _JS_CACHE.mkdir(parents=True, exist_ok=True)
     cached = _JS_CACHE / f"{name}.js"
     if cached.exists():
@@ -59,8 +68,48 @@ def _get_js(name, log=None):
     url = _JS_LIBS[name]
     if log:
         log(f"  Downloading {name} (one-time) …")
-    with urllib.request.urlopen(url, timeout=30) as r:
-        content = r.read().decode("utf-8")
+
+    def _fetch(ctx=None):
+        with urllib.request.urlopen(url, timeout=30,
+                                    **({"context": ctx} if ctx else {})) as r:
+            return r.read().decode("utf-8")
+
+    content = None
+    last_err = None
+
+    # ① standard SSL
+    try:
+        content = _fetch()
+    except Exception as e:
+        last_err = e
+
+    # ② certifi CA bundle (fixes macOS PyInstaller bundles)
+    if content is None:
+        try:
+            import certifi
+            ctx = ssl.create_default_context(cafile=certifi.where())
+            content = _fetch(ctx)
+        except Exception as e:
+            last_err = e
+
+    # ③ unverified fallback (still encrypted, just skips cert check)
+    if content is None:
+        try:
+            if log:
+                log(f"  SSL warning: falling back to unverified download for {name}")
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode    = ssl.CERT_NONE
+            content = _fetch(ctx)
+        except Exception as e:
+            last_err = e
+
+    if content is None:
+        raise RuntimeError(
+            f"Could not download {name}.\n"
+            f"Check your internet connection.\nDetail: {last_err}"
+        )
+
     cached.write_text(content, encoding="utf-8")
     return content
 

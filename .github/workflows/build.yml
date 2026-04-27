@@ -1,6 +1,6 @@
 name: Build Executables
 
-# Runs automatically when you push a version tag  (e.g. git tag v1.0 && git push --tags)
+# Runs automatically when you push a version tag  (e.g. git tag v1.1 && git push --tags)
 # Can also be triggered manually from the Actions tab in GitHub.
 on:
   push:
@@ -23,7 +23,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install pillow pyinstaller
+        run: pip install pillow certifi pyinstaller
 
       - name: Build Mac app
         run: |
@@ -37,6 +37,7 @@ jobs:
             --hidden-import PIL.ImageFilter \
             --hidden-import PIL.ImageFont \
             --hidden-import PIL.ImageTk \
+            --hidden-import certifi \
             --hidden-import tkinter \
             --hidden-import tkinter.ttk \
             --hidden-import tkinter.colorchooser \
@@ -68,7 +69,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install pillow pyinstaller
+        run: pip install pillow certifi pyinstaller
 
       - name: Build Windows exe
         run: |
@@ -82,6 +83,7 @@ jobs:
             --hidden-import PIL.ImageFilter `
             --hidden-import PIL.ImageFont `
             --hidden-import PIL.ImageTk `
+            --hidden-import certifi `
             journal_factory.py
 
       - name: Upload Windows artifact
