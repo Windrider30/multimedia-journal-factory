@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# PyInstaller build output
+build/
+dist/
+*.spec
+
+# Journal build output (user-generated)
+_frames/
+*.mp4
+*_flipbook.html
+assets/
+
+# JS cache (downloaded at runtime)
+.journal_factory/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/

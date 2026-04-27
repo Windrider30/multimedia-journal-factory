@@ -1,0 +1,130 @@
+name: Build Executables
+
+# Runs automatically when you push a version tag  (e.g. git tag v1.0 && git push --tags)
+# Can also be triggered manually from the Actions tab in GitHub.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+
+  # ── macOS .app bundle ───────────────────────────────────────────────────────
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pillow pyinstaller
+
+      - name: Build Mac app
+        run: |
+          python -m PyInstaller \
+            --onefile \
+            --windowed \
+            --name "MultimediaJournalFactory" \
+            --hidden-import PIL \
+            --hidden-import PIL.Image \
+            --hidden-import PIL.ImageDraw \
+            --hidden-import PIL.ImageFilter \
+            --hidden-import PIL.ImageFont \
+            --hidden-import PIL.ImageTk \
+            --hidden-import tkinter \
+            --hidden-import tkinter.ttk \
+            --hidden-import tkinter.colorchooser \
+            --hidden-import tkinter.filedialog \
+            --hidden-import tkinter.messagebox \
+            journal_factory.py
+
+      - name: Zip the .app bundle
+        run: |
+          cd dist
+          zip -r MultimediaJournalFactory-Mac.zip MultimediaJournalFactory.app
+
+      - name: Upload Mac artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MultimediaJournalFactory-Mac
+          path: dist/MultimediaJournalFactory-Mac.zip
+
+  # ── Windows .exe ────────────────────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pillow pyinstaller
+
+      - name: Build Windows exe
+        run: |
+          python -m PyInstaller `
+            --onefile `
+            --windowed `
+            --name "MultimediaJournalFactory" `
+            --hidden-import PIL `
+            --hidden-import PIL.Image `
+            --hidden-import PIL.ImageDraw `
+            --hidden-import PIL.ImageFilter `
+            --hidden-import PIL.ImageFont `
+            --hidden-import PIL.ImageTk `
+            journal_factory.py
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MultimediaJournalFactory-Windows
+          path: dist/MultimediaJournalFactory.exe
+
+  # ── Create GitHub Release (only on version tags) ────────────────────────────
+  release:
+    needs: [build-mac, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download Mac artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: MultimediaJournalFactory-Mac
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: MultimediaJournalFactory-Windows
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Multimedia Journal Factory ${{ github.ref_name }}"
+          body: |
+            ## Multimedia Journal Factory ${{ github.ref_name }}
+
+            ### Downloads
+            | Platform | File | Notes |
+            |---|---|---|
+            | 🍎 macOS | `MultimediaJournalFactory-Mac.zip` | Unzip → right-click → Open (first run) |
+            | 🪟 Windows | `MultimediaJournalFactory.exe` | Run directly |
+
+            ### Requirements
+            - **FFmpeg** must be installed separately for video export:
+              - **Mac:** `brew install ffmpeg`
+              - **Windows:** Download from [ffmpeg.org](https://ffmpeg.org/download.html) or install [ShareX](https://getsharex.com/) (includes FFmpeg)
+          files: |
+            MultimediaJournalFactory-Mac.zip
+            MultimediaJournalFactory.exe
